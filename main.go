@@ -107,6 +107,7 @@ func main() {
 	callBack := make(chan int, 100)
 
 	// Create uploadExecutor nodes
+	// TODO: Add command flag for executor nodes
 	limit := 2
 	for w := 0; w < limit; w++ {
 		go uploadExecutor(w, jobQueue, callBack)

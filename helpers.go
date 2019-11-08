@@ -16,6 +16,7 @@ func getFiles(pattern string) []string {
 }
 
 // Formats prefix and filename into a Storage-compatible string
+// TODO: Consider case when prefix with leading slash
 func blobFormatter(prefix, filename string) (blob string) {
 	// Extract only the base filename
 	base := filepath.Base(filename)
