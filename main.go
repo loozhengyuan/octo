@@ -31,7 +31,7 @@ func uploadExecutor(n int, jobQueue <-chan string, callBack chan<- int) {
 		log.Printf("Worker #%v: Uploading File %s to %s/%s", n, file, b.name, blob)
 		if err := b.Upload(file, blob); err != nil {
 			// TODO: Log fatal while allowing other goroutines to gracefully exit
-			log.Fatalf("Error uploading to GCS: %v", err)
+			log.Fatalf("Worker #%v: Error uploading to GCS bucket %s: %v", n, b.name, err)
 		}
 
 		// Notify PubSub
@@ -47,7 +47,7 @@ func uploadExecutor(n int, jobQueue <-chan string, callBack chan<- int) {
 		log.Printf("Worker #%v: Publishing File %s to Pub/Sub topic: %s", n, file, t.name)
 		if _, err := t.Publish(message, attrs); err != nil {
 			// TODO: Log fatal while allowing other goroutines to gracefully exit
-			log.Fatalf("Error publishing to Google Pub/Sub: %v", err)
+			log.Fatalf("Worker #%v: Error publishing to Pub/Sub topic %s: %v", n, t.name, err)
 		}
 
 		callBack <- 1
