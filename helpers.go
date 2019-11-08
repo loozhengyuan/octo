@@ -17,13 +17,17 @@ func getFiles(pattern string) []string {
 
 // Formats prefix and filename into a Storage-compatible string
 func blobFormatter(prefix, filename string) (blob string) {
+	// Extract only the base filename
+	base := filepath.Base(filename)
+
+	// Formulate filename
 	switch {
 	case len(prefix) == 0:
-		blob = filename
+		blob = base
 	case prefix[len(prefix)-1:] == "/":
-		blob = fmt.Sprintf("%s%s", prefix, filename)
+		blob = fmt.Sprintf("%s%s", prefix, base)
 	default:
-		blob = fmt.Sprintf("%s/%s", prefix, filename)
+		blob = fmt.Sprintf("%s/%s", prefix, base)
 	}
 	return blob
 }
