@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"flag"
+	"os"
 
 	"cloud.google.com/go/logging"
 	"cloud.google.com/go/pubsub"
@@ -47,6 +48,12 @@ func uploadExecutor(n int, jobQueue <-chan string, callBack chan<- int) {
 		if _, err := t.Publish(message, attrs); err != nil {
 			// TODO: Log fatal while allowing other goroutines to gracefully exit
 			log.Fatalf("Worker #%v: Error publishing to Pub/Sub topic %s: %v", n, t.name, err)
+		}
+
+		// Delete file before terminating
+		if err := os.Remove(file); err != nil {
+			// TODO: Log fatal while allowing other goroutines to gracefully exit
+			log.Fatalf("Worker #%v: Error deleting file %s: %v", n, file, err)
 		}
 
 		callBack <- 1
