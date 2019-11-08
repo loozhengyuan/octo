@@ -119,6 +119,7 @@ func main() {
 	log.Printf("Files found: %s", files)
 
 	// Dispatch files to queue
+	// TODO: Add log message for when no files are found
 	for _, f := range files {
 		log.Printf("Enqueuing File: %s", f)
 		jobQueue <- f
