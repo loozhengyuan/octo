@@ -29,7 +29,9 @@ func uploadExecutor(n int, jobQueue <-chan string, callBack chan<- int) {
 			storageBucket,
 		}
 		log.Printf("Worker #%v: Uploading File %s to %s/%s", n, file, b.name, blob)
-		b.Upload(file, blob)
+		if err := b.Upload(file, blob); err != nil {
+			log.Fatalf("Error uploading to GCS: %v", err)
+		}
 
 		// Notify PubSub
 		message := fmt.Sprintf("File %s/%s uploaded!", b.name, blob)
@@ -42,7 +44,9 @@ func uploadExecutor(n int, jobQueue <-chan string, callBack chan<- int) {
 			pubSubTopic,
 		}
 		log.Printf("Worker #%v: Publishing File %s to Pub/Sub topic: %s", n, file, t.name)
-		t.Publish(message, attrs)
+		if _, err := t.Publish(message, attrs); err != nil {
+			log.Fatalf("Error publishing to Google Pub/Sub: %v", err)
+		}
 
 		callBack <- 1
 	}
