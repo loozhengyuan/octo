@@ -2,9 +2,9 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"log"
-	"flag"
 	"os"
 
 	"cloud.google.com/go/logging"
