@@ -1,4 +1,4 @@
-module github.com/loozhengyuan/iprospect-local-to-gcs
+module github.com/loozhengyuan/octo
 
 go 1.13
 
