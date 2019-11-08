@@ -7,7 +7,6 @@ import (
 )
 
 // Helper method to get files based on pattern
-// TODO: Get directory prefix
 func getFiles(pattern string) []string {
 	matches, err := filepath.Glob(pattern)
 	if err != nil {

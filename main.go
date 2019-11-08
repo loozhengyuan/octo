@@ -14,7 +14,6 @@ import (
 // Job variables
 var pubSubTopic string
 var storageBucket string
-var searchDirectory string
 var searchPattern string
 var blobPrefix string
 
@@ -59,7 +58,6 @@ func main() {
 	flag.StringVar(&GoogleCloudProjectID, "project", "", "project id of the GCP project")
 	flag.StringVar(&pubSubTopic, "topic", "", "pub/sub topic to publish to")
 	flag.StringVar(&storageBucket, "bucket", "", "storage bucket to upload to")
-	flag.StringVar(&searchDirectory, "directory", ".", "directory to search for files")
 	flag.StringVar(&searchPattern, "pattern", "*", "file patterns to search for")
 	flag.StringVar(&blobPrefix, "prefix", "", "string to prepend all uploaded blobs")
 	flag.Parse()
@@ -108,7 +106,7 @@ func main() {
 	}
 
 	// Get list of files
-	log.Printf("Searching for %s files in %s", searchPattern, searchDirectory)
+	log.Printf("Searching for files matching pattern: %s", searchPattern)
 	files := getFiles(searchPattern)
 	log.Printf("Files found: %s", files)
 
