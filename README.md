@@ -4,6 +4,8 @@ Fast, performant file uploader for Google Cloud Storage
 ## Quickstart
 
 ### Creating a service account
+_Note: If you're running on an Google Compute Engine, you may skip this section._
+
 First, [create a service account](https://cloud.google.com/iam/docs/creating-managing-service-accounts#creating) for use. The minimum required IAM roles are:
 - `Logs Writer`
 - `Pub/Sub Publisher`
