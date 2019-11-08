@@ -1,9 +1,9 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"path/filepath"
+	"strings"
 )
 
 // Helper method to get files based on pattern
@@ -16,19 +16,11 @@ func getFiles(pattern string) []string {
 }
 
 // Formats prefix and filename into a Storage-compatible string
-// TODO: Consider case when prefix with leading slash
-func blobFormatter(prefix, filename string) (blob string) {
+func blobFormatter(prefix, filename string) string {
 	// Extract only the base filename
 	base := filepath.Base(filename)
-
-	// Formulate filename
-	switch {
-	case len(prefix) == 0:
-		blob = base
-	case prefix[len(prefix)-1:] == "/":
-		blob = fmt.Sprintf("%s%s", prefix, base)
-	default:
-		blob = fmt.Sprintf("%s/%s", prefix, base)
-	}
+	// Join and clean concatenated filepath
+	// Leading slash is also trimmed
+	blob := strings.TrimLeft(filepath.Join(base, filename), "/")
 	return blob
 }
