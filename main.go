@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -10,13 +9,31 @@ import (
 	"cloud.google.com/go/logging"
 	"cloud.google.com/go/pubsub"
 	"cloud.google.com/go/storage"
+	"github.com/spf13/cobra"
 )
 
-// Job variables
-var pubSubTopic string
-var storageBucket string
-var searchPattern string
-var blobPrefix string
+var (
+	// Flag Vars
+	projectID     string
+	storageBucket string
+	pubSubTopic   string
+	searchPattern string
+	blobPrefix    string
+	workerNodes   int
+
+	// Root Command - octo
+	rootCmd = &cobra.Command{
+		Use: "octo <glob pattern>",
+		Long: `Fast, performant file uploader for Google Cloud Storage
+More information: https://github.com/loozhengyuan/octo`,
+		Args: cobra.ExactValidArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			// Set search pattern
+			searchPattern = args[0]
+			initUpload()
+		},
+	}
+)
 
 func uploadExecutor(n int, jobQueue <-chan string, callBack chan<- int) {
 	for file := range jobQueue {
@@ -60,22 +77,8 @@ func uploadExecutor(n int, jobQueue <-chan string, callBack chan<- int) {
 	}
 }
 
-func main() {
-	// Parse command flags
-	flag.StringVar(&GoogleCloudProjectID, "project", "", "project id of the GCP project")
-	flag.StringVar(&pubSubTopic, "topic", "", "pub/sub topic to publish to")
-	flag.StringVar(&storageBucket, "bucket", "", "storage bucket to upload to")
-	flag.StringVar(&searchPattern, "pattern", "*", "file patterns to search for")
-	flag.StringVar(&blobPrefix, "prefix", "", "string to prepend all uploaded blobs")
-	flag.Parse()
-
-	// Echo commands
-	// TODO: Handle missing parameters
-	log.Printf("Setting project-id as: %s", GoogleCloudProjectID)
-	log.Printf("Storing all files in bucket: %s", storageBucket)
-	log.Printf("Publishing messages to topic: %s", pubSubTopic)
-
-	// Create err variable
+func initUpload() {
+	// Create error variable
 	var err error
 
 	// Create ctx variable
@@ -108,8 +111,8 @@ func main() {
 
 	// Create uploadExecutor nodes
 	// TODO: Add command flag for executor nodes
-	limit := 2
-	for w := 0; w < limit; w++ {
+	log.Printf("Creating %v worker nodes", workerNodes)
+	for w := 0; w < workerNodes; w++ {
 		go uploadExecutor(w, jobQueue, callBack)
 	}
 
@@ -131,4 +134,20 @@ func main() {
 	for a := 0; a < len(files); a++ {
 		<-callBack
 	}
+}
+
+func main() {
+	// upCmd Flags
+	rootCmd.Flags().StringVarP(&GoogleCloudProjectID, "project", "p", "", "name of the Google Cloud project")
+	rootCmd.Flags().StringVarP(&storageBucket, "bucket", "b", "", "name of the Storage bucket to upload")
+	rootCmd.Flags().StringVarP(&pubSubTopic, "topic", "t", "", "name of the Pub/Sub topic to publish")
+	rootCmd.Flags().StringVar(&blobPrefix, "prefix", "", "string prefix to append to the blob")
+	rootCmd.Flags().IntVar(&workerNodes, "workers", 3, "number of workers nodes to spawn")
+	rootCmd.MarkFlagRequired("project")
+	rootCmd.MarkFlagRequired("bucket")
+	rootCmd.MarkFlagRequired("topic")
+
+	// Execute commands
+	// rootCmd.AddCommand(upCmd)
+	rootCmd.Execute()
 }
