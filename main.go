@@ -117,7 +117,6 @@ func initUpload() {
 	callBack := make(chan int, 100)
 
 	// Create uploadExecutor nodes
-	// TODO: Add command flag for executor nodes
 	log.Printf("Creating %v worker nodes", workerNodes)
 	for w := 0; w < workerNodes; w++ {
 		go uploadExecutor(w, jobQueue, callBack)
