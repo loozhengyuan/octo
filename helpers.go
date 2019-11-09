@@ -21,6 +21,6 @@ func blobFormatter(prefix, filename string) string {
 	base := filepath.Base(filename)
 	// Join and clean concatenated filepath
 	// Leading slash is also trimmed
-	blob := strings.TrimLeft(filepath.Join(base, filename), "/")
+	blob := strings.TrimLeft(filepath.Join(prefix, base), "/")
 	return blob
 }
