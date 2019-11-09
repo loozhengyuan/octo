@@ -42,19 +42,38 @@ octo
 List of command flags:
 ```sh
 $ octo -h
-Usage of ./octo:
-  -bucket string
-        storage bucket to upload to
-  -directory string
-        directory to search for files (default ".")
-  -pattern string
-        file patterns to search for (default "*")
-  -prefix string
-        string to prepend all uploaded blobs
-  -project string
-        project id of the GCP project
-  -topic string
-        pub/sub topic to publish to
+Fast, performant file uploader for Google Cloud Storage
+More information: https://github.com/loozhengyuan/octo
+
+Usage:
+  octo [command]
+
+Available Commands:
+  help        Help about any command
+  up          Upload files matching a glob pattern
+
+Flags:
+  -h, --help   help for octo
+
+Use "octo [command] --help" for more information about a command.
+```
+```sh
+$ octo up -h
+Upload files matching a glob pattern
+
+Usage:
+  octo up <glob pattern> [flags]
+
+Examples:
+  octo up '*.gz' -p my-project -b my-bucket -t my-topic
+
+Flags:
+  -b, --bucket string    name of the Storage bucket to upload
+  -h, --help             help for up
+      --prefix string    string prefix to append to the blob
+  -p, --project string   name of the Google Cloud project
+  -t, --topic string     name of the Pub/Sub topic to publish
+      --workers int      number of workers nodes to spawn (default 10)
 ```
 
 ### Optional: Running as cron job
