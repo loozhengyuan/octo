@@ -23,10 +23,17 @@ var (
 
 	// Root Command - octo
 	rootCmd = &cobra.Command{
-		Use: "octo <glob pattern>",
+		Use: "octo",
 		Long: `Fast, performant file uploader for Google Cloud Storage
 More information: https://github.com/loozhengyuan/octo`,
-		Args: cobra.ExactValidArgs(1),
+	}
+
+	// Sub Command - octo up
+	upCmd = &cobra.Command{
+		Use:     "up <glob pattern>",
+		Short:   "Upload files matching a glob pattern",
+		Example: "  octo up '*.gz' -p my-project -b my-bucket -t my-topic",
+		Args:    cobra.ExactValidArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			// Set search pattern
 			searchPattern = args[0]
@@ -138,16 +145,16 @@ func initUpload() {
 
 func main() {
 	// upCmd Flags
-	rootCmd.Flags().StringVarP(&GoogleCloudProjectID, "project", "p", "", "name of the Google Cloud project")
-	rootCmd.Flags().StringVarP(&storageBucket, "bucket", "b", "", "name of the Storage bucket to upload")
-	rootCmd.Flags().StringVarP(&pubSubTopic, "topic", "t", "", "name of the Pub/Sub topic to publish")
-	rootCmd.Flags().StringVar(&blobPrefix, "prefix", "", "string prefix to append to the blob")
-	rootCmd.Flags().IntVar(&workerNodes, "workers", 3, "number of workers nodes to spawn")
-	rootCmd.MarkFlagRequired("project")
-	rootCmd.MarkFlagRequired("bucket")
-	rootCmd.MarkFlagRequired("topic")
+	upCmd.Flags().StringVarP(&GoogleCloudProjectID, "project", "p", "", "name of the Google Cloud project")
+	upCmd.Flags().StringVarP(&storageBucket, "bucket", "b", "", "name of the Storage bucket to upload")
+	upCmd.Flags().StringVarP(&pubSubTopic, "topic", "t", "", "name of the Pub/Sub topic to publish")
+	upCmd.Flags().StringVar(&blobPrefix, "prefix", "", "string prefix to append to the blob")
+	upCmd.Flags().IntVar(&workerNodes, "workers", 10, "number of workers nodes to spawn")
+	upCmd.MarkFlagRequired("project")
+	upCmd.MarkFlagRequired("bucket")
+	upCmd.MarkFlagRequired("topic")
 
 	// Execute commands
-	// rootCmd.AddCommand(upCmd)
+	rootCmd.AddCommand(upCmd)
 	rootCmd.Execute()
 }
