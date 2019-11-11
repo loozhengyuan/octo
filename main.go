@@ -45,56 +45,63 @@ More information: https://github.com/loozhengyuan/octo`,
 	}
 )
 
+func uploadFile(n int, file string) error {
+	// Decompress gzip file is applicable and desired
+	if ext := filepath.Ext(file); ext == ".gz" && autoDecompress == true {
+		newFileName := strings.TrimSuffix(file, ext)
+		log.Printf("Worker #%v: Uncompressing %s to %s", n, file, newFileName)
+		err := UncompressGzipFile(file, newFileName)
+		if err != nil {
+			log.Fatalf("Worker #%v: Error uncompressing file %s: %v", n, file, err)
+		}
+		file = newFileName
+	}
+
+	// Create blob format
+	blob := blobFormatter(blobPrefix, file)
+
+	// Upload file to Storage
+	b := &StorageBucket{
+		StorageClient,
+		storageBucket,
+	}
+	log.Printf("Worker #%v: Uploading File %s to %s/%s", n, file, b.name, blob)
+	if err := b.Upload(file, blob); err != nil {
+		// TODO: Log fatal while allowing other goroutines to gracefully exit
+		log.Fatalf("Worker #%v: Error uploading to GCS bucket %s: %v", n, b.name, err)
+	}
+
+	// Notify PubSub
+	message := fmt.Sprintf("File %s/%s uploaded!", b.name, blob)
+	attrs := map[string]string{
+		"bucket": b.name,
+		"blob":   blob,
+	}
+	t := &PubSubTopic{
+		PubSubClient,
+		pubSubTopic,
+	}
+	log.Printf("Worker #%v: Publishing File %s to Pub/Sub topic: %s", n, file, t.name)
+	if _, err := t.Publish(message, attrs); err != nil {
+		// TODO: Log fatal while allowing other goroutines to gracefully exit
+		log.Fatalf("Worker #%v: Error publishing to Pub/Sub topic %s: %v", n, t.name, err)
+	}
+
+	// Delete file before terminating
+	// TODO: Remove both compressed and uncompressed files
+	if err := os.Remove(file); err != nil {
+		// TODO: Log fatal while allowing other goroutines to gracefully exit
+		log.Fatalf("Worker #%v: Error deleting file %s: %v", n, file, err)
+	}
+	return nil
+}
+
 func uploadExecutor(n int, jobQueue <-chan string, callBack chan<- int) {
 	for file := range jobQueue {
-		// Decompress gzip file is applicable and desired
-		if ext := filepath.Ext(file); ext == ".gz" && autoDecompress == true {
-			newFileName := strings.TrimSuffix(file, ext)
-			log.Printf("Worker #%v: Uncompressing %s to %s", n, file, newFileName)
-			err := UncompressGzipFile(file, newFileName)
-			if err != nil {
-				log.Fatalf("Worker #%v: Error uncompressing file %s: %v", n, file, err)
-			}
-			file = newFileName
-		}
+		// Upload file
+		uploadFile(n, file)
 
-		// Create blob format
-		blob := blobFormatter(blobPrefix, file)
-
-		// Upload file to Storage
-		b := &StorageBucket{
-			StorageClient,
-			storageBucket,
-		}
-		log.Printf("Worker #%v: Uploading File %s to %s/%s", n, file, b.name, blob)
-		if err := b.Upload(file, blob); err != nil {
-			// TODO: Log fatal while allowing other goroutines to gracefully exit
-			log.Fatalf("Worker #%v: Error uploading to GCS bucket %s: %v", n, b.name, err)
-		}
-
-		// Notify PubSub
-		message := fmt.Sprintf("File %s/%s uploaded!", b.name, blob)
-		attrs := map[string]string{
-			"bucket": b.name,
-			"blob":   blob,
-		}
-		t := &PubSubTopic{
-			PubSubClient,
-			pubSubTopic,
-		}
-		log.Printf("Worker #%v: Publishing File %s to Pub/Sub topic: %s", n, file, t.name)
-		if _, err := t.Publish(message, attrs); err != nil {
-			// TODO: Log fatal while allowing other goroutines to gracefully exit
-			log.Fatalf("Worker #%v: Error publishing to Pub/Sub topic %s: %v", n, t.name, err)
-		}
-
-		// Delete file before terminating
-		// TODO: Remove both compressed and uncompressed files
-		if err := os.Remove(file); err != nil {
-			// TODO: Log fatal while allowing other goroutines to gracefully exit
-			log.Fatalf("Worker #%v: Error deleting file %s: %v", n, file, err)
-		}
-
+		// Await
 		callBack <- 1
 	}
 }
