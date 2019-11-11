@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"cloud.google.com/go/logging"
 	"cloud.google.com/go/pubsub"
@@ -14,12 +16,13 @@ import (
 
 var (
 	// Flag Vars
-	projectID     string
-	storageBucket string
-	pubSubTopic   string
-	searchPattern string
-	blobPrefix    string
-	workerNodes   int
+	projectID      string
+	storageBucket  string
+	pubSubTopic    string
+	searchPattern  string
+	blobPrefix     string
+	workerNodes    int
+	autoDecompress bool
 
 	// Root Command - octo
 	rootCmd = &cobra.Command{
@@ -44,6 +47,17 @@ More information: https://github.com/loozhengyuan/octo`,
 
 func uploadExecutor(n int, jobQueue <-chan string, callBack chan<- int) {
 	for file := range jobQueue {
+		// Decompress gzip file is applicable and desired
+		if ext := filepath.Ext(file); ext == ".gz" && autoDecompress == true {
+			newFileName := strings.TrimSuffix(file, ext)
+			log.Printf("Worker #%v: Uncompressing %s to %s", n, file, newFileName)
+			err := UncompressGzipFile(file, newFileName)
+			if err != nil {
+				log.Fatalf("Worker #%v: Error uncompressing file %s: %v", n, file, err)
+			}
+			file = newFileName
+		}
+
 		// Create blob format
 		blob := blobFormatter(blobPrefix, file)
 
@@ -75,6 +89,7 @@ func uploadExecutor(n int, jobQueue <-chan string, callBack chan<- int) {
 		}
 
 		// Delete file before terminating
+		// TODO: Remove both compressed and uncompressed files
 		if err := os.Remove(file); err != nil {
 			// TODO: Log fatal while allowing other goroutines to gracefully exit
 			log.Fatalf("Worker #%v: Error deleting file %s: %v", n, file, err)
@@ -151,6 +166,7 @@ func main() {
 	upCmd.Flags().StringVarP(&pubSubTopic, "topic", "t", "", "name of the Pub/Sub topic to publish")
 	upCmd.Flags().StringVar(&blobPrefix, "prefix", "", "string prefix to append to the blob")
 	upCmd.Flags().IntVar(&workerNodes, "workers", 10, "number of workers nodes to spawn")
+	upCmd.Flags().BoolVar(&autoDecompress, "autodecompress", false, "number of workers nodes to spawn")
 	upCmd.MarkFlagRequired("project")
 	upCmd.MarkFlagRequired("bucket")
 	upCmd.MarkFlagRequired("topic")
