@@ -15,6 +15,25 @@ type Table struct {
 	Table   string
 }
 
+// NewTable returns a Table object type
+func NewTable(ctx *context.Context, project, dataset, table string) (*Table, error) {
+
+	// Create new client
+	client, err := bigquery.NewClient(*ctx, project)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to create client: %w", err)
+	}
+
+	// Create table
+	t := &Table{
+		Client: client,
+		Ctx:    ctx,
+		Dataset: dataset,
+		Table: table,
+	}
+	return t, nil
+}
+
 // LoadFromGcs is a method to upload files Google Cloud Storage
 func (t *Table) LoadFromGcs(uri string) error {
 
