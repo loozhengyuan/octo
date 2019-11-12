@@ -9,9 +9,9 @@ import (
 
 // Topic is a topic object in Google Pub Sub
 type Topic struct {
-	client *pubsub.Client
-	ctx    *context.Context
-	name   string
+	Client *pubsub.Client
+	Ctx    *context.Context
+	Name   string
 }
 
 // NewTopic returns a Topic object type
@@ -25,9 +25,9 @@ func NewTopic(ctx *context.Context, project, topic string) (*Topic, error) {
 
 	// Create topic
 	t := &Topic{
-		client: client,
-		ctx:    ctx,
-		name:   topic,
+		Client: client,
+		Ctx:    ctx,
+		Name:   topic,
 	}
 	return t, nil
 }
@@ -37,7 +37,7 @@ func (k *Topic) Publish(message string, attrs map[string]string) (string, error)
 	ctx := context.Background()
 
 	// Get topic object
-	t := k.client.Topic(k.name)
+	t := k.Client.Topic(k.Name)
 
 	// Publish message
 	result := t.Publish(ctx, &pubsub.Message{

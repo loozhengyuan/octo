@@ -9,10 +9,10 @@ import (
 
 // Table is a Google BigQuery table object
 type Table struct {
-	client  *bigquery.Client
-	ctx     *context.Context
-	dataset string
-	table   string
+	Client  *bigquery.Client
+	Ctx     *context.Context
+	Dataset string
+	Table   string
 }
 
 // LoadFromGcs is a method to upload files Google Cloud Storage
@@ -25,15 +25,15 @@ func (t *Table) LoadFromGcs(uri string) error {
 	gcsRef.SkipLeadingRows = 1
 
 	// Configure load job
-	loader := t.client.Dataset(t.dataset).Table(t.table).LoaderFrom(gcsRef)
+	loader := t.Client.Dataset(t.Dataset).Table(t.Table).LoaderFrom(gcsRef)
 	loader.WriteDisposition = bigquery.WriteTruncate
 
 	// Execute and await job
-	job, err := loader.Run(*t.ctx)
+	job, err := loader.Run(*t.Ctx)
 	if err != nil {
 		return err
 	}
-	status, err := job.Wait(*t.ctx)
+	status, err := job.Wait(*t.Ctx)
 	if err != nil {
 		return err
 	}

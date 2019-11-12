@@ -11,9 +11,9 @@ import (
 
 // Bucket is a bucket object in Google Cloud Storage
 type Bucket struct {
-	client *storage.Client
-	ctx    *context.Context
-	name   string
+	Client *storage.Client
+	Ctx    *context.Context
+	Name   string
 }
 
 // NewBucket returns a Bucket object type
@@ -27,9 +27,9 @@ func NewBucket(ctx *context.Context, project, bucket string) (*Bucket, error) {
 
 	// Create Bucket
 	b := &Bucket{
-		client: client,
-		ctx:    ctx,
-		name:   bucket,
+		Client: client,
+		Ctx:    ctx,
+		Name:   bucket,
 	}
 	return b, nil
 }
@@ -45,7 +45,7 @@ func (b *Bucket) Upload(file, blob string) error {
 	defer f.Close()
 
 	// Copy file to bucket
-	wc := b.client.Bucket(b.name).Object(blob).NewWriter(*b.ctx)
+	wc := b.Client.Bucket(b.Name).Object(blob).NewWriter(*b.Ctx)
 	if _, err = io.Copy(wc, f); err != nil {
 		return err
 	}
