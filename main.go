@@ -8,9 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"cloud.google.com/go/logging"
-	"cloud.google.com/go/pubsub"
-	"cloud.google.com/go/storage"
+	"github.com/loozhengyuan/octo/api/gcp"
 	"github.com/spf13/cobra"
 )
 
@@ -46,6 +44,9 @@ More information: https://github.com/loozhengyuan/octo`,
 )
 
 func uploadFile(n int, file string) error {
+	// Create ctx variable
+	ctx := context.Background()
+
 	// Decompress gzip file is applicable and desired
 	if ext := filepath.Ext(file); ext == ".gz" && autoDecompress == true {
 		newFileName := strings.TrimSuffix(file, ext)
@@ -60,31 +61,37 @@ func uploadFile(n int, file string) error {
 	// Create blob format
 	blob := blobFormatter(blobPrefix, file)
 
-	// Upload file to Storage
-	b := &StorageBucket{
-		StorageClient,
-		storageBucket,
+	// Create bucket object
+	log.Printf("Worker #%v: Creating bucket object", n)
+	b, err := gcp.NewBucket(&ctx, projectID, storageBucket)
+	if err != nil {
+		log.Fatalf("Worker #%v: Failed to create new bucket object: %v", n, err)
 	}
-	log.Printf("Worker #%v: Uploading File %s to %s/%s", n, file, b.name, blob)
+
+	// Upload file to Storage
+	log.Printf("Worker #%v: Uploading File %s to %s/%s", n, file, b.Name, blob)
 	if err := b.Upload(file, blob); err != nil {
 		// TODO: Log fatal while allowing other goroutines to gracefully exit
-		log.Fatalf("Worker #%v: Error uploading to GCS bucket %s: %v", n, b.name, err)
+		log.Fatalf("Worker #%v: Error uploading to GCS bucket %s: %v", n, b.Name, err)
+	}
+
+	// Create topic object
+	log.Printf("Worker #%v: Creating topic object", n)
+	t, err := gcp.NewTopic(&ctx, projectID, pubSubTopic)
+	if err != nil {
+		log.Fatalf("Worker #%v: Failed to create new topic object: %v", n, err)
 	}
 
 	// Notify PubSub
-	message := fmt.Sprintf("File %s/%s uploaded!", b.name, blob)
+	message := fmt.Sprintf("File %s/%s uploaded!", b.Name, blob)
 	attrs := map[string]string{
-		"bucket": b.name,
+		"bucket": b.Name,
 		"blob":   blob,
 	}
-	t := &PubSubTopic{
-		PubSubClient,
-		pubSubTopic,
-	}
-	log.Printf("Worker #%v: Publishing File %s to Pub/Sub topic: %s", n, file, t.name)
+	log.Printf("Worker #%v: Publishing File %s to Pub/Sub topic: %s", n, file, t.Name)
 	if _, err := t.Publish(message, attrs); err != nil {
 		// TODO: Log fatal while allowing other goroutines to gracefully exit
-		log.Fatalf("Worker #%v: Error publishing to Pub/Sub topic %s: %v", n, t.name, err)
+		log.Fatalf("Worker #%v: Error publishing to Pub/Sub topic %s: %v", n, t.Name, err)
 	}
 
 	// Delete file before terminating
@@ -107,32 +114,6 @@ func uploadExecutor(n int, jobQueue <-chan string, callBack chan<- int) {
 }
 
 func initUpload() {
-	// Create error variable
-	var err error
-
-	// Create ctx variable
-	ctx := context.Background()
-
-	// Create LoggingClient first
-	// TODO: Instantiate logger
-	LoggingClient, err = logging.NewClient(ctx, GoogleCloudProjectID)
-	if err != nil {
-		log.Fatalf("Failed to create client: %v", err)
-	}
-	defer LoggingClient.Close()
-
-	// Create StorageClient
-	StorageClient, err = storage.NewClient(ctx)
-	if err != nil {
-		log.Fatalf("Failed to create client: %v", err)
-	}
-
-	// Create PubSubClient
-	PubSubClient, err = pubsub.NewClient(ctx, GoogleCloudProjectID)
-	if err != nil {
-		log.Fatalf("Failed to create client: %v", err)
-	}
-
 	// Create jobQueue and callBack channels
 	// TODO: Consider if making non-bounded channels is viable
 	jobQueue := make(chan string, 100)
@@ -168,7 +149,7 @@ func initUpload() {
 
 func main() {
 	// upCmd Flags
-	upCmd.Flags().StringVarP(&GoogleCloudProjectID, "project", "p", "", "name of the Google Cloud project")
+	upCmd.Flags().StringVarP(&projectID, "project", "p", "", "name of the Google Cloud project")
 	upCmd.Flags().StringVarP(&storageBucket, "bucket", "b", "", "name of the Storage bucket to upload")
 	upCmd.Flags().StringVarP(&pubSubTopic, "topic", "t", "", "name of the Pub/Sub topic to publish")
 	upCmd.Flags().StringVar(&blobPrefix, "prefix", "", "string prefix to append to the blob")
