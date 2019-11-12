@@ -6,7 +6,7 @@ import (
 	"cloud.google.com/go/pubsub"
 )
 
-// PubSubTopic is a topic object in Google Pub Sub
+// Topic is a topic object in Google Pub Sub
 type Topic struct {
 	client *pubsub.Client
 	ctx    *context.Context
