@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"sync"
 
 	"github.com/loozhengyuan/octo/api/gcp"
@@ -67,6 +68,12 @@ More information: https://github.com/loozhengyuan/octo`,
 
 					// Decrement the counter when the goroutine completes.
 					defer wg.Done()
+
+					// Check if extension is meant to be excluded
+					log.Printf("Worker #%v: Checking for valid file extension", n)
+					if ext := filepath.Ext(file); ext == ".part" {
+						log.Fatalf("Worker #%v: File %s ending with .part is not valid", n, b.Name)
+					}
 
 					// Create blob format
 					blob := blobFormatter(blobPrefix, file)
