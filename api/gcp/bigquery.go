@@ -59,7 +59,9 @@ func (t *Table) LoadFromGcs(uri string) error {
 
 	// Return error if job completed but with erred
 	if status.Err() != nil {
-		return fmt.Errorf("job completed with error: %v", status.Err())
+		// status.Errors preferred over status.Err() so that full 
+		// array of errors are returned
+		return fmt.Errorf("Job completed with error: %v", status.Errors)
 	}
 	return nil
 }
