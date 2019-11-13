@@ -26,10 +26,10 @@ func NewTable(ctx *context.Context, project, dataset, table string) (*Table, err
 
 	// Create table
 	t := &Table{
-		Client: client,
-		Ctx:    ctx,
+		Client:  client,
+		Ctx:     ctx,
 		Dataset: dataset,
-		Table: table,
+		Table:   table,
 	}
 	return t, nil
 }
@@ -59,7 +59,7 @@ func (t *Table) LoadFromGcs(uri string) error {
 
 	// Return error if job completed but with erred
 	if status.Err() != nil {
-		// status.Errors preferred over status.Err() so that full 
+		// status.Errors preferred over status.Err() so that full
 		// array of errors are returned
 		return fmt.Errorf("Job completed with error: %v", status.Errors)
 	}
