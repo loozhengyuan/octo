@@ -59,6 +59,8 @@ More information: https://github.com/loozhengyuan/octo`,
 				// Increment the WaitGroup counter.
 				wg.Add(1)
 
+				// TODO: Stat file or match glob pattern
+
 				// Process path
 				log.Printf("Processing: %s", path)
 				go func(n int, file string) {
