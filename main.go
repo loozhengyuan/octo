@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path/filepath"
-	"strings"
 	"sync"
 
 	"github.com/loozhengyuan/octo/api/gcp"
@@ -21,13 +19,11 @@ var (
 	wg sync.WaitGroup
 
 	// Flag Vars
-	projectID      string
-	storageBucket  string
-	pubSubTopic    string
-	searchPattern  string
-	blobPrefix     string
-	workerNodes    int
-	autoDecompress bool
+	projectID     string
+	storageBucket string
+	pubSubTopic   string
+	searchPattern string
+	blobPrefix    string
 
 	// Root Command - octo
 	rootCmd = &cobra.Command{
@@ -70,17 +66,6 @@ More information: https://github.com/loozhengyuan/octo`,
 					// Decrement the counter when the goroutine completes.
 					defer wg.Done()
 
-					// Decompress gzip file is applicable and desired
-					if ext := filepath.Ext(file); ext == ".gz" && autoDecompress == true {
-						newFileName := strings.TrimSuffix(file, ext)
-						log.Printf("Worker #%v: Uncompressing %s to %s", n, file, newFileName)
-						err := UncompressGzipFile(file, newFileName)
-						if err != nil {
-							log.Fatalf("Worker #%v: Error uncompressing file %s: %v", n, file, err)
-						}
-						file = newFileName
-					}
-
 					// Create blob format
 					blob := blobFormatter(blobPrefix, file)
 
@@ -104,7 +89,6 @@ More information: https://github.com/loozhengyuan/octo`,
 					}
 
 					// Delete file before terminating
-					// TODO: Remove both compressed and uncompressed files
 					if err := os.Remove(file); err != nil {
 						// TODO: Log fatal while allowing other goroutines to gracefully exit
 						log.Fatalf("Worker #%v: Error deleting file %s: %v", n, file, err)
@@ -162,8 +146,6 @@ func main() {
 	upCmd.Flags().StringVarP(&storageBucket, "bucket", "b", "", "name of the Storage bucket to upload")
 	upCmd.Flags().StringVarP(&pubSubTopic, "topic", "t", "", "name of the Pub/Sub topic to publish")
 	upCmd.Flags().StringVar(&blobPrefix, "prefix", "", "string prefix to append to the blob")
-	upCmd.Flags().IntVar(&workerNodes, "workers", 10, "number of workers nodes to spawn")
-	upCmd.Flags().BoolVar(&autoDecompress, "autodecompress", false, "number of workers nodes to spawn")
 	upCmd.MarkFlagRequired("project")
 	upCmd.MarkFlagRequired("bucket")
 	upCmd.MarkFlagRequired("topic")
