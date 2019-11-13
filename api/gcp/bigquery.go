@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"regexp"
 
 	"cloud.google.com/go/bigquery"
@@ -38,11 +39,24 @@ func NewTable(ctx *context.Context, project, dataset, table string) (*Table, err
 
 // LoadFromGcs is a method to upload files Google Cloud Storage
 func (t *Table) LoadFromGcs(uri string) error {
+	// Read schema file
+	// TODO: Allow user to pass unique schema filename
+	jsonSchema, err := ioutil.ReadFile("schema.json")
+	if err != nil {
+		return fmt.Errorf("Failed to create schema: %v", err)
+	}
+
+	// Convert JSON to bigquery schema object
+	schema, err := bigquery.SchemaFromJSON(jsonSchema)
+	if err != nil {
+		return fmt.Errorf("Failed to parse schema: %v", err)
+	}
 
 	// Configure source file in GCS
 	gcsRef := bigquery.NewGCSReference(uri)
 	gcsRef.SourceFormat = bigquery.CSV
-	gcsRef.AutoDetect = true
+	gcsRef.Schema = schema
+	gcsRef.FieldDelimiter = "\t"
 	gcsRef.SkipLeadingRows = 1
 
 	// Configure load job
