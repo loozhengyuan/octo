@@ -72,7 +72,8 @@ More information: https://github.com/loozhengyuan/octo`,
 					// Check if extension is meant to be excluded
 					log.Printf("Worker #%v: Checking for valid file extension", n)
 					if ext := filepath.Ext(file); ext == ".part" {
-						log.Fatalf("Worker #%v: File %s ending with .part is not valid", n, b.Name)
+						log.Printf("Worker #%v: File %s ending with .part is not valid", n, b.Name)
+						return
 					}
 
 					// Create blob format
@@ -81,8 +82,8 @@ More information: https://github.com/loozhengyuan/octo`,
 					// Upload file to Storage
 					log.Printf("Worker #%v: Uploading File %s to %s/%s", n, file, b.Name, blob)
 					if err := b.Upload(file, blob); err != nil {
-						// TODO: Log fatal while allowing other goroutines to gracefully exit
-						log.Fatalf("Worker #%v: Error uploading to GCS bucket %s: %v", n, b.Name, err)
+						log.Printf("Worker #%v: Error uploading to GCS bucket %s: %v", n, b.Name, err)
+						return
 					}
 
 					// Notify PubSub
@@ -93,14 +94,14 @@ More information: https://github.com/loozhengyuan/octo`,
 					}
 					log.Printf("Worker #%v: Publishing File %s to Pub/Sub topic: %s", n, file, t.Name)
 					if _, err := t.Publish(message, attrs); err != nil {
-						// TODO: Log fatal while allowing other goroutines to gracefully exit
-						log.Fatalf("Worker #%v: Error publishing to Pub/Sub topic %s: %v", n, t.Name, err)
+						log.Printf("Worker #%v: Error publishing to Pub/Sub topic %s: %v", n, t.Name, err)
+						return
 					}
 
 					// Delete file before terminating
 					if err := os.Remove(file); err != nil {
-						// TODO: Log fatal while allowing other goroutines to gracefully exit
-						log.Fatalf("Worker #%v: Error deleting file %s: %v", n, file, err)
+						log.Printf("Worker #%v: Error deleting file %s: %v", n, file, err)
+						return
 					}
 
 					// Log success
@@ -143,7 +144,8 @@ More information: https://github.com/loozhengyuan/octo`,
 					// Load
 					log.Printf("Worker #%v: Loading data", worker)
 					if err := t.LoadFromGcs(file); err != nil {
-						log.Fatalf("Worker #%v: Failed to load data: %v", worker, err)
+						log.Printf("Worker #%v: Failed to load data: %v", worker, err)
+						return
 					}
 
 					// Log success
