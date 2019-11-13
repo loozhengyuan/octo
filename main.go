@@ -123,7 +123,7 @@ More information: https://github.com/loozhengyuan/octo`,
 				wg.Add(1)
 
 				// Process uri
-				fmt.Printf("Processing: %s", uri)
+				log.Printf("Processing: %s", uri)
 				go func(worker int, file string) {
 					// Decrement the counter when the goroutine completes.
 					defer wg.Done()
