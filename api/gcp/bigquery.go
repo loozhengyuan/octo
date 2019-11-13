@@ -2,7 +2,9 @@ package gcp
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"regexp"
 
 	"cloud.google.com/go/bigquery"
 )
@@ -64,4 +66,32 @@ func (t *Table) LoadFromGcs(uri string) error {
 		return fmt.Errorf("Job completed with error: %v", status.Errors)
 	}
 	return nil
+}
+
+// GetBigQuerySanitisedName returns a BigQuery-compatible
+// name for use as a column name.
+// Reference: https://cloud.google.com/bigquery/docs/schemas#column_names
+func GetBigQuerySanitisedName(src string) (repl string, err error) {
+
+	// Create reserved names map
+	reserved := map[string]bool{
+		"_TABLE_":     true,
+		"_FILE_":      true,
+		"_PARTITION_": true,
+	}
+
+	// Check for error
+	switch {
+	case len(src) > 128:
+		// Returns error if length exceeds 128 characters
+		return "", errors.New("Length of string exceeds 128 characters")
+	case reserved[src]:
+		// Returns error if string in reserved names
+		return "", errors.New("String conflicts with one of BigQuery's reserved names")
+	default:
+		re := regexp.MustCompile(`\W`)
+		repl = re.ReplaceAllString(src, "_")
+		// TODO: Check if string does not start with A-Za-z\_
+		return repl, nil
+	}
 }
