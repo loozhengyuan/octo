@@ -14,6 +14,9 @@ import (
 )
 
 var (
+	// Create ctx variable
+	ctx = context.Background()
+
 	// WaitGroup
 	wg sync.WaitGroup
 
@@ -40,14 +43,73 @@ More information: https://github.com/loozhengyuan/octo`,
 		Example: "  octo up '*.gz' -p my-project -b my-bucket -t my-topic",
 		Args:    cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
+
+			// Create bucket object
+			log.Println("Creating bucket object")
+			b, err := gcp.NewBucket(&ctx, projectID, storageBucket)
+			if err != nil {
+				log.Fatalf("Failed to create new bucket object: %v", err)
+			}
+
+			// Create topic object
+			log.Println("Creating topic object")
+			t, err := gcp.NewTopic(&ctx, projectID, pubSubTopic)
+			if err != nil {
+				log.Fatalf("Failed to create new topic object: %v", err)
+			}
+
 			// Launch goroutine for every file
 			for i, path := range args {
 				// Increment the WaitGroup counter.
 				wg.Add(1)
-				
+
 				// Process path
 				log.Printf("Processing: %s", path)
-				go uploadFile(i, path)
+				go func(n int, file string) {
+
+					// Decrement the counter when the goroutine completes.
+					defer wg.Done()
+
+					// Decompress gzip file is applicable and desired
+					if ext := filepath.Ext(file); ext == ".gz" && autoDecompress == true {
+						newFileName := strings.TrimSuffix(file, ext)
+						log.Printf("Worker #%v: Uncompressing %s to %s", n, file, newFileName)
+						err := UncompressGzipFile(file, newFileName)
+						if err != nil {
+							log.Fatalf("Worker #%v: Error uncompressing file %s: %v", n, file, err)
+						}
+						file = newFileName
+					}
+
+					// Create blob format
+					blob := blobFormatter(blobPrefix, file)
+
+					// Upload file to Storage
+					log.Printf("Worker #%v: Uploading File %s to %s/%s", n, file, b.Name, blob)
+					if err := b.Upload(file, blob); err != nil {
+						// TODO: Log fatal while allowing other goroutines to gracefully exit
+						log.Fatalf("Worker #%v: Error uploading to GCS bucket %s: %v", n, b.Name, err)
+					}
+
+					// Notify PubSub
+					message := fmt.Sprintf("File %s/%s uploaded!", b.Name, blob)
+					attrs := map[string]string{
+						"bucket": b.Name,
+						"blob":   blob,
+					}
+					log.Printf("Worker #%v: Publishing File %s to Pub/Sub topic: %s", n, file, t.Name)
+					if _, err := t.Publish(message, attrs); err != nil {
+						// TODO: Log fatal while allowing other goroutines to gracefully exit
+						log.Fatalf("Worker #%v: Error publishing to Pub/Sub topic %s: %v", n, t.Name, err)
+					}
+
+					// Delete file before terminating
+					// TODO: Remove both compressed and uncompressed files
+					if err := os.Remove(file); err != nil {
+						// TODO: Log fatal while allowing other goroutines to gracefully exit
+						log.Fatalf("Worker #%v: Error deleting file %s: %v", n, file, err)
+					}
+				}(i, path)
 			}
 		},
 	}
@@ -58,6 +120,19 @@ More information: https://github.com/loozhengyuan/octo`,
 		Short: "Load files from Storage to BigQuery",
 		Args:  cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
+
+			// Temp vars
+			// TODO: Remove!
+			dataset := "Intel"
+			table := "test"
+
+			// Create table object
+			log.Println("Creating table object")
+			t, err := gcp.NewTable(&ctx, projectID, dataset, table)
+			if err != nil {
+				log.Fatalf("Failed to create new table object: %v", err)
+			}
+
 			// Launch goroutine for every file
 			for i, uri := range args {
 				// Increment the WaitGroup counter.
@@ -65,101 +140,21 @@ More information: https://github.com/loozhengyuan/octo`,
 
 				// Process uri
 				fmt.Printf("Processing: %s", uri)
-				go loadFromGcs(i, uri)
+				go func(worker int, file string) {
+					// Decrement the counter when the goroutine completes.
+					defer wg.Done()
+
+					// Load
+					log.Printf("Worker #%v: Loading data", worker)
+					if err := t.LoadFromGcs(file); err != nil {
+						log.Fatalf("Worker #%v: Failed to load data: %v", worker, err)
+					}
+
+				}(i, uri)
 			}
 		},
 	}
 )
-
-func loadFromGcs(n int, uri string) {
-
-	// Decrement the counter when the goroutine completes.
-	defer wg.Done()
-
-	// Temp vars
-	dataset := "Intel"
-	table := "test"
-
-	// Create ctx variable
-	ctx := context.Background()
-
-	// Create table object
-	log.Printf("Worker #%v: Creating table object", n)
-	t, err := gcp.NewTable(&ctx, projectID, dataset, table)
-	if err != nil {
-		log.Fatalf("Worker #%v: Failed to create new table object: %v", n, err)
-	}
-
-	// Load
-	log.Printf("Worker #%v: Loading data", n)
-	if err := t.LoadFromGcs(uri); err != nil {
-		log.Fatalf("Worker #%v: Failed to load data: %v", n, err)
-	}
-}
-
-func uploadFile(n int, file string) error {
-
-	// Decrement the counter when the goroutine completes.
-	defer wg.Done()
-
-	// Create ctx variable
-	ctx := context.Background()
-
-	// Decompress gzip file is applicable and desired
-	if ext := filepath.Ext(file); ext == ".gz" && autoDecompress == true {
-		newFileName := strings.TrimSuffix(file, ext)
-		log.Printf("Worker #%v: Uncompressing %s to %s", n, file, newFileName)
-		err := UncompressGzipFile(file, newFileName)
-		if err != nil {
-			log.Fatalf("Worker #%v: Error uncompressing file %s: %v", n, file, err)
-		}
-		file = newFileName
-	}
-
-	// Create blob format
-	blob := blobFormatter(blobPrefix, file)
-
-	// Create bucket object
-	log.Printf("Worker #%v: Creating bucket object", n)
-	b, err := gcp.NewBucket(&ctx, projectID, storageBucket)
-	if err != nil {
-		log.Fatalf("Worker #%v: Failed to create new bucket object: %v", n, err)
-	}
-
-	// Upload file to Storage
-	log.Printf("Worker #%v: Uploading File %s to %s/%s", n, file, b.Name, blob)
-	if err := b.Upload(file, blob); err != nil {
-		// TODO: Log fatal while allowing other goroutines to gracefully exit
-		log.Fatalf("Worker #%v: Error uploading to GCS bucket %s: %v", n, b.Name, err)
-	}
-
-	// Create topic object
-	log.Printf("Worker #%v: Creating topic object", n)
-	t, err := gcp.NewTopic(&ctx, projectID, pubSubTopic)
-	if err != nil {
-		log.Fatalf("Worker #%v: Failed to create new topic object: %v", n, err)
-	}
-
-	// Notify PubSub
-	message := fmt.Sprintf("File %s/%s uploaded!", b.Name, blob)
-	attrs := map[string]string{
-		"bucket": b.Name,
-		"blob":   blob,
-	}
-	log.Printf("Worker #%v: Publishing File %s to Pub/Sub topic: %s", n, file, t.Name)
-	if _, err := t.Publish(message, attrs); err != nil {
-		// TODO: Log fatal while allowing other goroutines to gracefully exit
-		log.Fatalf("Worker #%v: Error publishing to Pub/Sub topic %s: %v", n, t.Name, err)
-	}
-
-	// Delete file before terminating
-	// TODO: Remove both compressed and uncompressed files
-	if err := os.Remove(file); err != nil {
-		// TODO: Log fatal while allowing other goroutines to gracefully exit
-		log.Fatalf("Worker #%v: Error deleting file %s: %v", n, file, err)
-	}
-	return nil
-}
 
 func main() {
 	// upCmd Flags
