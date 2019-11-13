@@ -95,6 +95,9 @@ More information: https://github.com/loozhengyuan/octo`,
 						// TODO: Log fatal while allowing other goroutines to gracefully exit
 						log.Fatalf("Worker #%v: Error deleting file %s: %v", n, file, err)
 					}
+
+					// Log success
+					log.Printf("Worker #%v: File %s was successfully uploaded!", n, file)
 				}(i, path)
 			}
 		},
@@ -136,6 +139,8 @@ More information: https://github.com/loozhengyuan/octo`,
 						log.Fatalf("Worker #%v: Failed to load data: %v", worker, err)
 					}
 
+					// Log success
+					log.Printf("Worker #%v: Blob %s was successfully uploaded!", worker, file)
 				}(i, uri)
 			}
 		},
