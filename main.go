@@ -7,12 +7,16 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/loozhengyuan/octo/api/gcp"
 	"github.com/spf13/cobra"
 )
 
 var (
+	// WaitGroup
+	wg sync.WaitGroup
+
 	// Flag Vars
 	projectID      string
 	storageBucket  string
@@ -34,11 +38,17 @@ More information: https://github.com/loozhengyuan/octo`,
 		Use:     "up <glob pattern>",
 		Short:   "Upload files matching a glob pattern",
 		Example: "  octo up '*.gz' -p my-project -b my-bucket -t my-topic",
-		Args:    cobra.ExactValidArgs(1),
+		Args:    cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
-			// Set search pattern
-			searchPattern = args[0]
-			initUpload()
+			// Launch goroutine for every file
+			for i, path := range args {
+				// Increment the WaitGroup counter.
+				wg.Add(1)
+				
+				// Process path
+				log.Printf("Processing: %s", path)
+				go uploadFile(i, path)
+			}
 		},
 	}
 
@@ -46,16 +56,27 @@ More information: https://github.com/loozhengyuan/octo`,
 	loadCmd = &cobra.Command{
 		Use:   "load gs://<your_uri>",
 		Short: "Load files from Storage to BigQuery",
-		Args:  cobra.ExactValidArgs(1),
+		Args:  cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
-			loadFromGcs(args[0])
+			// Launch goroutine for every file
+			for i, uri := range args {
+				// Increment the WaitGroup counter.
+				wg.Add(1)
+
+				// Process uri
+				fmt.Printf("Processing: %s", uri)
+				go loadFromGcs(i, uri)
+			}
 		},
 	}
 )
 
-func loadFromGcs(uri string) {
+func loadFromGcs(n int, uri string) {
+
+	// Decrement the counter when the goroutine completes.
+	defer wg.Done()
+
 	// Temp vars
-	n := 1
 	dataset := "Intel"
 	table := "test"
 
@@ -77,6 +98,10 @@ func loadFromGcs(uri string) {
 }
 
 func uploadFile(n int, file string) error {
+
+	// Decrement the counter when the goroutine completes.
+	defer wg.Done()
+
 	// Create ctx variable
 	ctx := context.Background()
 
@@ -136,50 +161,6 @@ func uploadFile(n int, file string) error {
 	return nil
 }
 
-func uploadExecutor(n int, jobQueue <-chan string, callBack chan<- int) {
-	for file := range jobQueue {
-		// Upload file
-		uploadFile(n, file)
-
-		// Await
-		callBack <- 1
-	}
-}
-
-func initUpload() {
-	// Create jobQueue and callBack channels
-	// TODO: Consider if making non-bounded channels is viable
-	jobQueue := make(chan string, 100)
-	callBack := make(chan int, 100)
-
-	// Create uploadExecutor nodes
-	log.Printf("Creating %v worker nodes", workerNodes)
-	for w := 0; w < workerNodes; w++ {
-		go uploadExecutor(w, jobQueue, callBack)
-	}
-
-	// Get list of files
-	log.Printf("Searching for files matching pattern: %s", searchPattern)
-	files := getFiles(searchPattern)
-	if len(files) < 1 {
-		log.Fatalln("No files were found!")
-	}
-	log.Printf("Files found: %s", files)
-
-	// Dispatch files to queue
-	for _, f := range files {
-		log.Printf("Enqueuing File: %s", f)
-		jobQueue <- f
-	}
-
-	// Await all goroutines to complete
-	// Close is not needed because program will automatically
-	// terminate once goroutines from all files has finished
-	for a := 0; a < len(files); a++ {
-		<-callBack
-	}
-}
-
 func main() {
 	// upCmd Flags
 	upCmd.Flags().StringVarP(&projectID, "project", "p", "", "name of the Google Cloud project")
@@ -195,16 +176,12 @@ func main() {
 
 	// loadCmd Flags
 	loadCmd.Flags().StringVarP(&projectID, "project", "p", "", "name of the Google Cloud project")
-	// upCmd.Flags().StringVarP(&storageBucket, "bucket", "b", "", "name of the Storage bucket to upload")
-	// upCmd.Flags().StringVarP(&pubSubTopic, "topic", "t", "", "name of the Pub/Sub topic to publish")
-	// upCmd.Flags().StringVar(&blobPrefix, "prefix", "", "string prefix to append to the blob")
-	// upCmd.Flags().IntVar(&workerNodes, "workers", 10, "number of workers nodes to spawn")
-	// upCmd.Flags().BoolVar(&autoDecompress, "autodecompress", false, "number of workers nodes to spawn")
 	loadCmd.MarkFlagRequired("project")
-	// upCmd.MarkFlagRequired("bucket")
-	// upCmd.MarkFlagRequired("topic")
 	rootCmd.AddCommand(loadCmd)
 
 	// Execute commands
 	rootCmd.Execute()
+
+	// Wait for all goroutines to finish executing
+	wg.Wait()
 }
