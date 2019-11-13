@@ -41,7 +41,40 @@ More information: https://github.com/loozhengyuan/octo`,
 			initUpload()
 		},
 	}
+
+	// Sub Command - octo load
+	loadCmd = &cobra.Command{
+		Use:   "load gs://<your_uri>",
+		Short: "Load files from Storage to BigQuery",
+		Args:  cobra.ExactValidArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			loadFromGcs(args[0])
+		},
+	}
 )
+
+func loadFromGcs(uri string) {
+	// Temp vars
+	n := 1
+	dataset := "Intel"
+	table := "test"
+
+	// Create ctx variable
+	ctx := context.Background()
+
+	// Create table object
+	log.Printf("Worker #%v: Creating table object", n)
+	t, err := gcp.NewTable(&ctx, projectID, dataset, table)
+	if err != nil {
+		log.Fatalf("Worker #%v: Failed to create new table object: %v", n, err)
+	}
+
+	// Load
+	log.Printf("Worker #%v: Loading data", n)
+	if err := t.LoadFromGcs(uri); err != nil {
+		log.Fatalf("Worker #%v: Failed to load data: %v", n, err)
+	}
+}
 
 func uploadFile(n int, file string) error {
 	// Create ctx variable
@@ -158,8 +191,20 @@ func main() {
 	upCmd.MarkFlagRequired("project")
 	upCmd.MarkFlagRequired("bucket")
 	upCmd.MarkFlagRequired("topic")
+	rootCmd.AddCommand(upCmd)
+
+	// loadCmd Flags
+	loadCmd.Flags().StringVarP(&projectID, "project", "p", "", "name of the Google Cloud project")
+	// upCmd.Flags().StringVarP(&storageBucket, "bucket", "b", "", "name of the Storage bucket to upload")
+	// upCmd.Flags().StringVarP(&pubSubTopic, "topic", "t", "", "name of the Pub/Sub topic to publish")
+	// upCmd.Flags().StringVar(&blobPrefix, "prefix", "", "string prefix to append to the blob")
+	// upCmd.Flags().IntVar(&workerNodes, "workers", 10, "number of workers nodes to spawn")
+	// upCmd.Flags().BoolVar(&autoDecompress, "autodecompress", false, "number of workers nodes to spawn")
+	loadCmd.MarkFlagRequired("project")
+	// upCmd.MarkFlagRequired("bucket")
+	// upCmd.MarkFlagRequired("topic")
+	rootCmd.AddCommand(loadCmd)
 
 	// Execute commands
-	rootCmd.AddCommand(upCmd)
 	rootCmd.Execute()
 }
