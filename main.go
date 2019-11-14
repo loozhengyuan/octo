@@ -164,8 +164,16 @@ More information: https://github.com/loozhengyuan/octo`,
 		Args:  cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 
+			// Get valid file matches
+			log.Printf("Getting file matches: %s", args)
+			matches, err := getFiles(args)
+			if err != nil {
+				log.Fatalf("Failed to get file matches: %s", args)
+			}
+			log.Printf("Found the following files: %s", matches)
+
 			// Launch goroutine for every file
-			for i, uri := range args {
+			for i, uri := range matches {
 				// Increment the WaitGroup counter.
 				wg.Add(1)
 
