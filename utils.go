@@ -3,19 +3,38 @@ package main
 import (
 	"compress/gzip"
 	"io"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
 )
 
 // Helper method to get files based on pattern
-func getFiles(pattern string) []string {
-	matches, err := filepath.Glob(pattern)
-	if err != nil {
-		log.Fatal(err)
+func getFiles(patterns []string) ([]string, error) {
+
+	// Loop through every pattern
+	matchMap := make(map[string]bool)
+	for _, pattern := range patterns {
+		// Find files based on pattern
+		matches, err := filepath.Glob(pattern)
+		if err != nil {
+			return nil, err
+		}
+
+		// Only append valid files
+		for _, match := range matches {
+			if f, _ := os.Stat(match); !f.IsDir() {
+				// TODO: Error handling for os.Stat()
+				matchMap[match] = true
+			}
+		}
 	}
-	return matches
+
+	// Returns an array of keys
+	files := make([]string, 0, len(matchMap))
+	for k := range matchMap {
+		files = append(files, k)
+	}
+	return files, nil
 }
 
 // Formats prefix and filename into a Storage-compatible string
