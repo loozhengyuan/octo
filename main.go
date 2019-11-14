@@ -6,9 +6,11 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/loozhengyuan/octo/api/gcp"
+	"github.com/loozhengyuan/octo/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -154,6 +156,56 @@ More information: https://github.com/loozhengyuan/octo`,
 			}
 		},
 	}
+
+	// Sub Command - octo prep
+	prepCmd = &cobra.Command{
+		Use:   "prep file1 file2",
+		Short: "Uncompresses compressed files",
+		Args:  cobra.MinimumNArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+
+			// Launch goroutine for every file
+			for i, uri := range args {
+				// Increment the WaitGroup counter.
+				wg.Add(1)
+
+				// Process uri
+				log.Printf("Processing: %s", uri)
+				go func(worker int, file string) {
+					// Decrement the counter when the goroutine completes.
+					defer wg.Done()
+
+					// Handle file
+					switch {
+					case strings.HasSuffix(file, ".tar.gz"):
+						log.Printf("Worker #%v: Exploding file %s", worker, file)
+
+						// Get file handler
+						fp, err := os.Open(file)
+						if err != nil {
+							log.Printf("Worker #%v: Error opening file %s: %v", worker, file, err)
+							return
+						}
+						defer fp.Close()
+
+						// Untar file
+						// TODO: Clean up helper function
+						// TODO: Standardise log messages (?)
+						destinationDir := strings.TrimRight(file, ".tar.gz")
+						if err := utils.Untar(fp, destinationDir); err != nil {
+							log.Printf("Worker #%v: Error decompressing file %s: %v", worker, file, err)
+							return
+						}
+					default:
+						log.Printf("Worker #%v: File %s did not match any cases and will be left unhandled", worker, file)
+					}
+
+					// Log success
+					log.Printf("Worker #%v: Prep process for File %s has completed", worker, file)
+				}(i, uri)
+			}
+		},
+	}
 )
 
 func main() {
@@ -171,6 +223,9 @@ func main() {
 	loadCmd.Flags().StringVarP(&projectID, "project", "p", "", "name of the Google Cloud project")
 	loadCmd.MarkFlagRequired("project")
 	rootCmd.AddCommand(loadCmd)
+
+	// prepCmd Flags
+	rootCmd.AddCommand(prepCmd)
 
 	// Execute commands
 	rootCmd.Execute()
