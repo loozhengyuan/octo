@@ -49,6 +49,9 @@ More information: https://github.com/loozhengyuan/octo`,
 			if err != nil {
 				log.Fatalf("Failed to get file matches: %s", args)
 			}
+			if len(matches) == 0 {
+				log.Fatalf("No file matches were found!")
+			}
 			log.Printf("Found the following files: %s", matches)
 
 			// Create bucket object
@@ -175,6 +178,9 @@ More information: https://github.com/loozhengyuan/octo`,
 			matches, err := getFiles(args)
 			if err != nil {
 				log.Fatalf("Failed to get file matches: %s", args)
+			}
+			if len(matches) == 0 {
+				log.Fatalf("No file matches were found!")
 			}
 			log.Printf("Found the following files: %s", matches)
 
