@@ -22,11 +22,12 @@ var (
 	wg sync.WaitGroup
 
 	// Flag Vars
-	projectID     string
-	storageBucket string
-	pubSubTopic   string
-	searchPattern string
-	blobPrefix    string
+	projectID                string
+	storageBucket            string
+	pubSubTopic              string
+	searchPattern            string
+	blobPrefix               string
+	loadCmdMoveRelevantFiles bool
 
 	// Root Command - octo
 	rootCmd = &cobra.Command{
@@ -216,6 +217,22 @@ More information: https://github.com/loozhengyuan/octo`,
 							log.Printf("Worker #%v: Error decompressing file %s: %v", worker, file, err)
 							return
 						}
+
+						// Move relevant files into destination directory if desired
+						// TODO: Make logic dynamically search for relevant files
+						if loadCmdMoveRelevantFiles {
+							log.Printf("Worker #%v: Moving relevant files to new directory", worker)
+							compressedFile := destinationDir + ".tar.gz"
+							os.Rename(
+								compressedFile,
+								filepath.Join(destinationDir, filepath.Base(compressedFile)),
+							)
+							manifestFile := destinationDir + ".txt"
+							os.Rename(
+								manifestFile,
+								filepath.Join(destinationDir, filepath.Base(manifestFile)),
+							)
+						}
 					default:
 						log.Printf("Worker #%v: File %s did not match any cases and will be left unhandled", worker, file)
 					}
@@ -245,6 +262,7 @@ func main() {
 	rootCmd.AddCommand(loadCmd)
 
 	// prepCmd Flags
+	prepCmd.Flags().BoolVar(&loadCmdMoveRelevantFiles, "automove", false, "automatically move relevant files to new directory")
 	rootCmd.AddCommand(prepCmd)
 
 	// Execute commands
