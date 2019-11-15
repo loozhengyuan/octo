@@ -43,6 +43,14 @@ More information: https://github.com/loozhengyuan/octo`,
 		Args:    cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 
+			// Get valid file matches
+			log.Printf("Getting file matches: %s", args)
+			matches, err := getFiles(args)
+			if err != nil {
+				log.Fatalf("Failed to get file matches: %s", args)
+			}
+			log.Printf("Found the following files: %s", matches)
+
 			// Create bucket object
 			log.Println("Creating bucket object")
 			b, err := gcp.NewBucket(&ctx, projectID, storageBucket)
@@ -58,11 +66,9 @@ More information: https://github.com/loozhengyuan/octo`,
 			}
 
 			// Launch goroutine for every file
-			for i, path := range args {
+			for i, path := range matches {
 				// Increment the WaitGroup counter.
 				wg.Add(1)
-
-				// TODO: Stat file or match glob pattern
 
 				// Process path
 				log.Printf("Processing: %s", path)
